@@ -1,16 +1,5 @@
 import os
 
-def set_load_flow_settings(ldf_com_obj, load_scaling, generation_scaling):
-
-    ldf_com_obj.SetAttribute('scLoadFac', load_scaling)          # set load scaling factor
-    ldf_com_obj.SetAttribute('scGenFac', generation_scaling)     # set generation scaling factor
-
-    ldf_com_obj.SetAttribute('iopt_net', 0)  # AC Load Flow, balanced, positive sequence
-    ldf_com_obj.SetAttribute('iopt_at', 0)  # Automatic tap adjustment of transformers
-    ldf_com_obj.SetAttribute('iopt_pq', 0)  # Consider Voltage Dependency of Loads
-
-    return
-
 def start_powerfactory(file):
 
     import sys
@@ -37,7 +26,7 @@ def start_powerfactory(file):
     ldf = study_case_obj.SearchObject('*.ComLdf')                                  # Get load flow calculation object
 
 
-    set_load_flow_settings(ldf, 100, 100)  # Set default load flow settings
+
 
     o_IntPrjFolder_netdat = app.GetProjectFolder('netdat')
     o_ElmNet = o_IntPrjFolder_netdat.SearchObject('*.ElmNet')                   # Get network
@@ -45,3 +34,14 @@ def start_powerfactory(file):
     app.Hide()                                                                  # Hide GUI of powerfactory
 
     return app, study_case_obj, ldf, o_ElmNet
+
+def set_load_flow_settings(ldf_com_obj, load_scaling, generation_scaling):
+
+    ldf_com_obj.SetAttribute('scLoadFac', load_scaling)          # set load scaling factor
+    ldf_com_obj.SetAttribute('scGenFac', generation_scaling)     # set generation scaling factor
+
+    ldf_com_obj.SetAttribute('iopt_net', 0)  # AC Load Flow, balanced, positive sequence
+    ldf_com_obj.SetAttribute('iopt_at', 0)  # Automatic tap adjustment of transformers
+    ldf_com_obj.SetAttribute('iopt_pq', 0)  # Consider Voltage Dependency of Loads
+
+    return

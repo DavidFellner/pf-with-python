@@ -1,10 +1,7 @@
 from start_powerfactory import start_powerfactory
 import os
-#parent_dir = os.path.dirname(os.getcwd())
-#path = parent_dir + "\\Block 3 'DigSilent Power Factory & Python basics, automated model creation, and assignment of profiles'"
-#file = path + "\\PF LF&SC base.pfd"
 
-file = 'PF LF&SC base'
+file = 'PF LF&SC base'#
 
 ####################### start PowerFactory ###################################
 
