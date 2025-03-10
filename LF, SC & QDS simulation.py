@@ -1,6 +1,7 @@
 from start_powerfactory import start_powerfactory
 import os
 import pandas as pd
+import numpy as np
 
 #variable pre-allocation
 Bus_col = []
@@ -101,97 +102,57 @@ comres.iopt_exp = 6  # to export as csv
 comres.pResult = elmres #assign the results file to the export function
 comres.f_name = os.getcwd() + '\\results load flow calc.csv'
 comres.Execute()
+
 ##################### parameterize a QDS simulation, execute it and export results ##################################
 
-def set_QDS_settings(app, study_case_obj, t_start, t_end, step_unit=1, balanced=0, step_size=None, marker=None):
-    if step_size is None:
-        step_size = config.step_size
+local_machine_tz = 'Europe/Berlin'  # timezone; it's important for Powerfactory
 
-    local_machine_tz = config.local_machine_tz
+if study_case_obj.SearchObject('*.ComStatsim') is None: #important if no QDS has ever been performed, because element gets created with first calculation
+    qds = app.GetFromStudyCase("ComStatsim")
+    qds.Execute()
 
-    if study_case_obj.SearchObject('*.ComStatsim') is None:
-        qds = app.GetFromStudyCase("ComStatsim")
-        qds.Execute()
+#basic settings
+qds_com_obj = study_case_obj.SearchObject('*.ComStatsim')
+qds_com_obj.SetAttribute('iopt_net', 0)  # 0 = AC Load Flow, balanced, positive sequence
+qds_com_obj.SetAttribute('calcPeriod', 4)  # 4 = User defined time range
+qds_com_obj.SetAttribute('stepSize', 15) # simulation step size in chosen step unit (see line below)
+qds_com_obj.SetAttribute('stepUnit', 1)  # 1 = Minutes
 
-    qds_com_obj = study_case_obj.SearchObject('*.ComStatsim')
-    qds_com_obj.SetAttribute('iopt_net', balanced)  # AC Load Flow, balanced, positive sequence
-    qds_com_obj.SetAttribute('calcPeriod', 4)  # User defined time range
+#qds_com_obj.SetAttribute('startTime', int((pd.DatetimeIndex([(t_start - t_start.tz_convert(local_machine_tz).utcoffset())]).astype(np.int64) // 10 ** 9)[0]))
+#qds_com_obj.SetAttribute('endTime', int((pd.DatetimeIndex([(t_end - t_end.tz_convert(local_machine_tz).utcoffset())]).astype(np.int64) // 10 ** 9)[0]))
 
-    qds_com_obj.SetAttribute('startTime', int(
-        (pd.DatetimeIndex([(t_start - t_start.tz_convert(local_machine_tz).utcoffset())]).astype(np.int64) // 10 ** 9)[
-            0]))
-    qds_com_obj.SetAttribute('endTime', int(
-        (pd.DatetimeIndex([(t_end - t_end.tz_convert(local_machine_tz).utcoffset())]).astype(np.int64) // 10 ** 9)[
-            0]))
+#set calculation times
+t_start = pd.Timestamp('2016-06-01 08:00:00', tz='utc')                        # example for custom sim time start
+t_end = pd.Timestamp('2016-06-02 00:00:00', tz='utc') - pd.Timedelta(15, 'min') #15 for step size in minutes so as to also cover the alst profile data point
 
-    qds_com_obj.SetAttribute('stepSize', step_size)
-    qds_com_obj.SetAttribute('stepUnit', step_unit)  # Seconds, Minutes ....
+qds_com_obj.SetAttribute('startTime', int((pd.DatetimeIndex([(t_start - t_start.tz_convert(local_machine_tz).utcoffset())]).astype(np.int64) // 10 ** 9)[0])) #making sure time stamped data with a timezone stamp are compatible with local machine time
+qds_com_obj.SetAttribute('endTime', int((pd.DatetimeIndex([(t_end - t_end.tz_convert(local_machine_tz).utcoffset())]).astype(np.int64) // 10 ** 9)[0])) #making sure time stamped data with a timezone stamp are compatible with local machine time
 
-    if config.parallel_computing == True:
-        qds_com_obj.SetAttribute('iEnableParal', config.parallel_computing)  # settings for parallel computation
 
-        user = app.GetCurrentUser()
-        settings = user.SearchObject(r'Set\Def\Settings')
-        settings.SetAttribute('iActUseCore', 1)
-        settings.SetAttribute('iCoreInput', config.cores)
+#parallelize computations
+parallel_computing = True
+cores = 4  # cores to be used for parallel computing (i.e. when 64 available use 12 - 24)
 
-    if config.just_voltages:  # define result variables of interest; result file is generated accordingly
-        result_variables = {
-            'ElmTerm': [
-                'm:u',  # voltage at terminal
-            ],
-        }
-    elif config.deeplearning:
-        result_variables = {
-            'ElmTerm': [
-                'm:u',  # voltage at terminal
-                'm:Pgen',  # active power generated at terminal
-                'm:Qgen',  # reactive power generated at terminal
-            ],
-        }
-    elif config.sim_setting in ['stmk']:
-        result_variables = {
-            'ElmTerm': [
-                'm:u',
-                'm:Pflow',
-                'm:Qflow'
-            ],
-            'ElmLne': {
-                'm:P:bus2',
-                'm:Q:bus2',
-        }}
+if parallel_computing == True:
+    qds_com_obj.SetAttribute('iEnableParal', parallel_computing)  # settings for parallel computation
+    user = app.GetCurrentUser()
+    settings = user.SearchObject(r'Set\Def\Settings')
+    settings.SetAttribute('iActUseCore', 1)
+    settings.SetAttribute('iCoreInput', cores)
 
-    elif marker == 'load_estimation_training_data':
-        result_variables = {
-            'ElmTerm': [
-                'm:u',
-                'm:phiu',
-                'm:Pflow',
-                'm:Qflow'
-            ],
-            'ElmLod': [
-                'm:P:bus1',
-                'm:Q:bus1'
-            ],
-            'ElmPvsys': [
-                'm:P:bus1',
-                'm:Q:bus1'
-            ]
-        }
-    else:
-        result_variables = m.mapping()
+#run QDS
+qds_com_obj.Execute()
+result = qds_com_obj.results  # define result variables of interest in advance
 
-    result = pf.app.GetFromStudyCase('ComStatsim').results  # should be language independent
-    """if config.system_language == 0:
-        #result = pf._resolve_result_object('Quasi-Dynamic Simulation AC')  # get result file
-        result = pf.app.GetFromStudyCase('ComStatsim').presults #should be language independent
-    else:
-        if config.system_language == 1:
-            result = pf.app.GetFromStudyCase('ComStatsim').presults #should be language independent
-            #result = pf._resolve_result_object('Quasi-Dynamische Simulation AC')  # get result file"""
+# define result export
+comres = app.GetFromStudyCase('ComRes') # export of a resultfile can be done using the ComRes command
+comres.iopt_sep = 0  # to use the system seperator
+comres.iopt_honly = 0  # to export data and not only the header
+comres.iopt_tsel = 1    # export only selected variables
+comres.iopt_exp = 6  # to export as csv
 
-    pf.set_vars_of_result_obj(result,
-                              result_variables=result_variables)
+comres.pResult = result #assign the results file to the export function
+comres.f_name = os.getcwd() + '\\results qds calc.csv'
+comres.ExportFullRange ()   #use this command to get the results for the whole calculation duration
 
-    return result
 
