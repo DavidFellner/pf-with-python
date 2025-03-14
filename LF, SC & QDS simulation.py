@@ -118,9 +118,6 @@ qds_com_obj.SetAttribute('calcPeriod', 4)  # 4 = User defined time range
 qds_com_obj.SetAttribute('stepSize', 15) # simulation step size in chosen step unit (see line below)
 qds_com_obj.SetAttribute('stepUnit', 1)  # 1 = Minutes
 
-#qds_com_obj.SetAttribute('startTime', int((pd.DatetimeIndex([(t_start - t_start.tz_convert(local_machine_tz).utcoffset())]).astype(np.int64) // 10 ** 9)[0]))
-#qds_com_obj.SetAttribute('endTime', int((pd.DatetimeIndex([(t_end - t_end.tz_convert(local_machine_tz).utcoffset())]).astype(np.int64) // 10 ** 9)[0]))
-
 #set calculation times
 t_start = pd.Timestamp('2016-06-01 08:00:00', tz='utc')                        # example for custom sim time start
 t_end = pd.Timestamp('2016-06-02 00:00:00', tz='utc') - pd.Timedelta(15, 'min') #15 for step size in minutes so as to also cover the alst profile data point
