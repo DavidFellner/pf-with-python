@@ -32,6 +32,10 @@ app.Show()
 
 terminals = app.GetCalcRelevantObjects("*.ElmTerm")
 Pvs = app.GetCalcRelevantObjects("*.ElmPVsys")
+#set file paths for all the profiles to local paths
+chars = app.GetCalcRelevantObjects("*.ChaTime")
+for char in chars:
+    char.SetAttribute('f_name', os.getcwd() + '\\Profiles.csv')
 
 #########################################################################
 ###### short circuit #######################
